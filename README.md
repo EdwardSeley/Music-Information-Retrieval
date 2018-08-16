@@ -1,1 +1,2 @@
-# Music_Information_Retrieval
+# Music Information Retrieval Library
+A signal processing library that extracts musical information from audio files. The library processes an audio signal as a sequence of audio frames, with variable sample length and overlap. These frames can then be used to predict the frame's pitch (using autocorrelation) and calculate the MFCC (Mel Frequency Cepstral Coefficients). These features are typically used for Speech Recognition but are also very important for the field of Music Information Retrieval (MIR). 
