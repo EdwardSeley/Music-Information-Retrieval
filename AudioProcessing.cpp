@@ -6,10 +6,25 @@
 #include "fftw3.h"
 #include "AudioProcessing.h"
 #include <vector>
+#include <numeric> 
+#include <map>
+#include "Eigen/Dense"
+
 
 #define _USE_MATH_DEFINES
 #include <iostream>
 using namespace std;
+using namespace Eigen;
+
+constexpr auto M_PI = 3.14159265358979323846;
+
+map <int, MatrixXd> sinusoidFactorCache;
+map <int, vector <double>> indicesCache;
+map <vector<double>, vector<double>> correlationCache;
+int TYPICAL_BLOCK_SIZE = 1411;
+
+MatrixXd calculateSinusoidFactor(int LENGTH);
+MatrixXd sinusoidFactor1411 = calculateSinusoidFactor(TYPICAL_BLOCK_SIZE);
 
 vector <double> calculateFFT(vector <double> signal)
 {
@@ -38,10 +53,10 @@ vector <double> calculateInverseFFT(fftw_complex * amplitudes, int sampleCount)
 	return signal;
 }
 
-vector <double> calculateDCT(vector <double> signal, int sampleCount)
+vector <double> calculateDCT(vector <double> signal)
 {
-	vector <double> coefficients(sampleCount * 2);
-	fftw_plan p = fftw_plan_r2r_1d(sampleCount, signal.data(), &(coefficients)[0], FFTW_REDFT10, FFTW_ESTIMATE);
+	vector <double> coefficients(signal.size());
+	fftw_plan p = fftw_plan_r2r_1d(signal.size(), signal.data(), &(coefficients)[0], FFTW_REDFT10, FFTW_ESTIMATE);
 	fftw_execute(p);
 	fftw_destroy_plan(p);
 	return coefficients;
@@ -111,8 +126,12 @@ vector <double> calculateFilterBanks(vector <double> powerSpectrum, int sampleRa
 	return filterBanks;
 }
 
-vector <double> calculateAutoCorrelation(vector <double> signal)
+vector <double> calculateAutocorrelation(vector <double> signal)
 {
+	if (correlationCache.count(signal))
+		return correlationCache[signal];
+	if (correlationCache.size() > 100)
+		correlationCache.clear();
 	vector <double> paddedSignal = getZeroPaddedSeq(signal, signal.size());
 	int paddedSize = signal.size() * 2;
 	fftw_complex * forwardSignalFFT = calculateComplexFFT(paddedSignal);
@@ -125,17 +144,18 @@ vector <double> calculateAutoCorrelation(vector <double> signal)
 	}
 	vector <double> fullAutoCorrelation = calculateInverseFFT(product, paddedSize);
 	vector <double> autoCorrelation(fullAutoCorrelation.begin(), fullAutoCorrelation.begin() + signal.size());
-	
+
 	delete[] forwardSignalFFT;
 	delete[] backwardSignalFFT;
 	delete[] product;
+	correlationCache[signal] = autoCorrelation;
 
 	return autoCorrelation;
 }
 
 vector <double> calculateDiffs(vector <double> signal)
 {
-	vector <double> diffs(signal.size()-1);
+	vector <double> diffs(signal.size() - 1);
 	for (int i = 0; i < signal.size() - 1; i++)
 	{
 		diffs[i] = signal[i + 1] - signal[i];
@@ -156,20 +176,119 @@ int argMax(vector <double> signal, int sampleCount)
 	return maximumIndex;
 }
 
-int countZeroCrossings(vector <double> signal)
+vector <int> getZeroCrossings(vector <double> signal)
 {
-	int zeroCrossings = 0;
+	vector<int> zeroCrossings;
 
 	for (int i = 0; i < signal.size(); i++)
 	{
 		if (i == signal.size() - 1)
 			continue;
 		if (signal[i] == 0 and signal[i + 1] != 0)
-			zeroCrossings++;
+			zeroCrossings.push_back(i);
 		if ((signal[i] < 0 and signal[i + 1] > 0) or (signal[i] > 0 and signal[i + 1] < 0))
-			zeroCrossings++;
+			zeroCrossings.push_back(i);
 	}
 	return zeroCrossings;
+}
+
+vector <double> arange(int size)
+{
+	vector <double> vec(size);
+	for (int i = 0; i < size; i++)
+		vec[i] = i;
+	return vec;
+}
+
+MatrixXd calculateSinusoidFactor(int LENGTH)
+{
+	vector <double> t;
+	if (indicesCache.count(LENGTH))
+	{
+		t = indicesCache[LENGTH];
+	}
+	else
+	{
+		t = arange(LENGTH);
+		indicesCache[LENGTH] = t;
+	}
+	Map<MatrixXd> t_matrix(t.data(), LENGTH, 1);
+	MatrixXd indices = M_PI / LENGTH * t_matrix * t_matrix.transpose();
+	MatrixXd sinusoid(LENGTH, LENGTH);
+	sinusoid = Eigen::sin(indices.array());
+	return sinusoid;
+}
+
+vector <double> calculateDerivative(vector <double> seq)
+{
+	vector <double> dct = calculateDCT(seq);
+	const int LENGTH = seq.size();
+	vector <double> t;
+	if (indicesCache.count(LENGTH))
+	{
+		t = indicesCache[LENGTH];
+	}
+	else
+	{
+		t = arange(LENGTH);
+		indicesCache[LENGTH] = t;
+	}
+	Map<ArrayXd> dctVector(dct.data(), LENGTH);
+	Map<ArrayXd> indicesMatrix(t.data(), LENGTH);
+	MatrixXd derivativeMatrix = -2 * M_PI * dctVector * indicesMatrix;
+	MatrixXd derivative;
+	if (LENGTH == 1411)
+	{
+		derivative = (derivativeMatrix.transpose() * sinusoidFactor1411).array();
+	}
+	else {
+		
+		MatrixXd sinusoidFactor;
+		if (sinusoidFactorCache.count(LENGTH))
+		{
+			sinusoidFactor = sinusoidFactorCache[LENGTH];
+		}
+		else
+		{
+			sinusoidFactor = calculateSinusoidFactor(LENGTH);
+			sinusoidFactorCache[LENGTH] = sinusoidFactor;
+		}
+		derivative = (derivativeMatrix.transpose() * sinusoidFactor).array();
+
+	}
+	vector <double> deriv(derivative.data(), derivative.data() + derivative.size());
+	return deriv;
+}
+
+vector <int> getPeaks(vector <double> seq)
+{
+	vector <double> deriv = calculateDerivative(seq);
+	vector <int> zeroCrossings = getZeroCrossings(deriv);
+	vector <int> maxima;
+	for (int i = 0; i < zeroCrossings.size(); i++)
+	{
+		if (seq[zeroCrossings[i]] > 0)
+			maxima.push_back(zeroCrossings[i]);
+	}
+	return maxima;
+}
+
+vector <int> averageLocalClusters(vector <int> seq)
+{
+	vector <int> averages;
+	vector <int> cluster;
+	int window_size = 10;
+	for (int i = 0; i < seq.size(); i++)
+	{
+		cluster.push_back(seq[i]);
+		if (i == seq.size() - 1 or abs(seq[i] - seq[i + 1]) > window_size or abs(seq[i] - cluster[0]) > window_size)
+		{
+			int average = int(round(accumulate(cluster.begin(), cluster.end(), 0.0) / cluster.size()));
+			averages.push_back(average);
+			cluster.clear();
+		}
+	}
+	return averages;
 }
 
 double mean(vector <double> seq)
@@ -213,4 +332,47 @@ vector <double> reverseSeq(vector <double> seq)
 		reverse[i] = seq[seq.size() - 1 - i];
 	}
 	return reverse;
+}
+
+vector <double> removeSpikesAndValleys(vector <double> seq)
+{
+	vector <double> smoothSeq;
+
+	int i = 0;
+	while (i < seq.size())
+	{
+		double val = seq[i];
+		vector <double> surroudingValues;
+		for (int j = i; j < seq.size() && (val != 0 && seq[j] != 0 || val == 0 and seq[j] == 0); j++)
+		{
+			surroudingValues.push_back(seq[j]);
+			i = j;
+		}
+		i += 1;
+
+		if (surroudingValues.size() == 1 && i != 0 && i != seq.size() - 1 && val == 0)
+		{
+			smoothSeq.push_back((seq[i - 1] + seq[i + 1]) / 2);
+			continue;
+		}
+		if (surroudingValues.size() < 3)
+		{
+			for (int m = 0; m < surroudingValues.size(); m++)
+				smoothSeq.push_back(0);
+			continue;
+		}
+		double averageSurroundingVal = mean(surroudingValues);
+
+		for (int k = 0; k < surroudingValues.size(); k++)
+		{
+
+			if (val == 0)
+				smoothSeq.push_back(surroudingValues[k]);
+			else if (surroudingValues[k] > 1.3 * averageSurroundingVal)
+				smoothSeq.push_back(averageSurroundingVal);
+			else
+				smoothSeq.push_back(surroudingValues[k]);
+		}
+	}
+	return smoothSeq;
 }

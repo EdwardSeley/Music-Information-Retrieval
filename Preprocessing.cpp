@@ -11,7 +11,7 @@ void windowSignal(vector <double> signal, int sampleCount)
 {
 	for (int sample = 0; sample < sampleCount; sample++)
 	{
-		double multiplier = 0.5 - 0.5 * cos( (2 * M_PI*sample) / (sampleCount - 1));
+		double multiplier = 0.5 - 0.5 * cos((2 * M_PI*sample) / (sampleCount - 1));
 		signal[sample] = multiplier * signal[sample];
 	}
 }

@@ -7,11 +7,10 @@ using namespace std;
 class AudioFrame
 {
 public:
-	AudioFrame(vector<double> signal, double time, int sampleRate, int sampleCount);
+	AudioFrame(vector<double> signal, double time, int sampleRate);
 	vector <double> signal;
 	double time;
 	int sampleRate;
-	int sampleCount;
 };
 
 vector <AudioFrame> getAudioFrames(Sound sound, int frameSize, int frameShift);

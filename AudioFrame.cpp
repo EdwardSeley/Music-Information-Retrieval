@@ -8,42 +8,35 @@
 #undef main
 using namespace std;
 
-AudioFrame::AudioFrame(vector <double> signal, double seconds, int rate, int samples) : signal(signal),
+AudioFrame::AudioFrame(vector <double> signal, double seconds, int rate) : signal(signal),
 time(seconds),
-sampleRate(rate),
-sampleCount(samples)
+sampleRate(rate)
 {
-	DCOffset(signal, sampleCount);
-	windowSignal(signal, sampleCount);
+
 }
 
-vector<AudioFrame> getAudioFrames(Sound sound, int frameSize, int frameShift)
+vector<AudioFrame> getAudioFrames(Sound sound, int frameDuration, int durationShift)
 {
-	const vector <double> totalSamples = sound.audioSignal;
+	const vector <double> samples = sound.audioSignal;
 	const int sampleCount = sound.sampleCount;
 	const int sampleRate = sound.sampleRate;
 
-	int numOfFrames = floor(sampleCount / frameShift);
 	vector <AudioFrame> audioFrames;
 
-	int sample = 0;
-	int frameIndex = 0;
-	while (sample < sampleCount - frameSize + 1)
+	int frameSize = int(round((double)((double) frameDuration * sampleRate) / 1000));
+	int frameShift = int(round((double)((double) durationShift * sampleRate) / 1000));
+	
+	for (int sample = 0; sample < sampleCount; sample += frameShift)
 	{
-		vector <double> frameSignal(frameSize);
-		
-		int startingSample = sample;
-		for (int i = 0; i < frameSize && sample < sampleCount; i++)
-		{
-			frameSignal[i] = totalSamples[sample];
-			sample++;
-		}
-		int endingSample = sample - 1;
-		double time = (double) (startingSample + endingSample) / (2 * sampleRate);
-		AudioFrame frame = AudioFrame(frameSignal, time, sampleRate, frameSize);
+		int endSample;
+		if (sample + frameSize > sampleCount)
+			endSample = sampleCount;
+		else
+			endSample = sample + frameSize;
+		vector <double> frameSignal(samples.begin() + sample, samples.begin() + endSample);
+		double time = (double)(sample + endSample) / (2 * sampleRate);
+		AudioFrame frame(frameSignal, time, sampleRate);
 		audioFrames.push_back(frame);
-		sample = sample - frameSize + frameShift;
-		frameIndex++;
 	}
 	return audioFrames;
 }
