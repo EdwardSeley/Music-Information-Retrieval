@@ -6,8 +6,7 @@
 #include "FeatureExtraction.h"
 #include "map"
 #include <functional>
-
-
+#include <ctime>
 #include "stdafx.h"
 #include <iostream>
 #include "AudioFrame.h"
@@ -80,7 +79,7 @@ int main(int argc, const char * argv[])
 	}
 	if (argc > 5)
 	{
-		if (string(argv[5]) != "NOTES")
+		if (string(argv[5]) == "NOTES")
 			convertToNotes = true;
 	}
 
@@ -89,21 +88,26 @@ int main(int argc, const char * argv[])
 
 	vector <double> pitches(audioFrames.size());
 
+	cout << audioFrames.size() << endl;
+	
+	time_t startingTime;
+	time_t endingTime;
+	time(&startingTime);
+	
+	#pragma omp parallel for
 	for (int i = 0; i < audioFrames.size(); i++)
 	{
 		AudioFrame audioFrame = audioFrames[i];
-		if (!detectOnlyVoicedPitches || (detectOnlyVoicedPitches && VoiceActivityDetection(audioFrame)))
-			pitches[i] = detectPitch(audioFrame);
-		else
-			pitches[i] = 0;
+		pitches[i] = detectPitch(audioFrame, detectOnlyVoicedPitches);
 	}
-	vector <double> smoothPitches = removeSpikesAndValleys(pitches);
+	
+	vector <double> filteredPitches = removeSpikesAndValleys(pitches);
 	
 	if (convertToNotes)
 	{
 		for (int i = 0; i < audioFrames.size(); i++)
 		{
-			cout << "(" << audioFrames[i].time << ", " << frequencyToNote(smoothPitches[i]) << " ), ";
+			cout << "(" << audioFrames[i].time << ", " << frequencyToNote(filteredPitches[i]) << " ), ";
 		}
 		cout << endl;
 	}
@@ -111,7 +115,7 @@ int main(int argc, const char * argv[])
 	{
 		for (int i = 0; i < audioFrames.size(); i++)
 		{
-			cout << "(" << audioFrames[i].time << ", " << smoothPitches[i] << " ), ";
+			cout << "(" << audioFrames[i].time << ", " << filteredPitches[i] << " ), ";
 		}
 		cout << endl;
 	}

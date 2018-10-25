@@ -9,6 +9,7 @@
 #include <numeric> 
 #include <map>
 #include "Eigen/Dense"
+#include <omp.h>
 
 
 #define _USE_MATH_DEFINES
@@ -29,36 +30,64 @@ MatrixXd sinusoidFactor1411 = calculateSinusoidFactor(TYPICAL_BLOCK_SIZE);
 vector <double> calculateFFT(vector <double> signal)
 {
 	vector <double> amplitudes(signal.size());
-	fftw_plan p = fftw_plan_r2r_1d(signal.size(), &(signal)[0], &(amplitudes)[0], FFTW_R2HC, FFTW_ESTIMATE);
+	fftw_plan p;
+	#pragma omp critical
+	{
+		p = fftw_plan_r2r_1d(signal.size(), &(signal)[0], &(amplitudes)[0], FFTW_R2HC, FFTW_ESTIMATE);
+	}
 	fftw_execute(p);
-	fftw_destroy_plan(p);
+	#pragma omp critical
+	{
+		fftw_destroy_plan(p);
+	}
 	return amplitudes;
 }
 
 fftw_complex * calculateComplexFFT(vector <double> signal)
 {
 	fftw_complex * amplitudes = new fftw_complex[signal.size()];
-	fftw_plan p = fftw_plan_dft_r2c_1d(signal.size(), &(signal)[0], amplitudes, FFTW_ESTIMATE);
+	fftw_plan p;
+	#pragma omp critical
+	{
+		p = fftw_plan_dft_r2c_1d(signal.size(), &(signal)[0], amplitudes, FFTW_ESTIMATE);
+	}
 	fftw_execute(p);
-	fftw_destroy_plan(p);
+	#pragma omp critical
+	{
+		fftw_destroy_plan(p);
+	}
 	return amplitudes;
 }
 
 vector <double> calculateInverseFFT(fftw_complex * amplitudes, int sampleCount)
 {
 	vector <double> signal(sampleCount);
-	fftw_plan p = fftw_plan_dft_c2r_1d(sampleCount, amplitudes, &(signal)[0], FFTW_ESTIMATE);
+	fftw_plan p;
+	#pragma omp critical
+	{
+		p = fftw_plan_dft_c2r_1d(sampleCount, amplitudes, &(signal)[0], FFTW_ESTIMATE);
+	}
 	fftw_execute(p);
-	fftw_destroy_plan(p);
+	#pragma omp critical
+	{
+		fftw_destroy_plan(p);
+	}
 	return signal;
 }
 
 vector <double> calculateDCT(vector <double> signal)
 {
 	vector <double> coefficients(signal.size());
-	fftw_plan p = fftw_plan_r2r_1d(signal.size(), signal.data(), &(coefficients)[0], FFTW_REDFT10, FFTW_ESTIMATE);
+	fftw_plan p;
+	#pragma omp critical
+	{
+		p = fftw_plan_r2r_1d(signal.size(), signal.data(), &(coefficients)[0], FFTW_REDFT10, FFTW_ESTIMATE);
+	}
 	fftw_execute(p);
-	fftw_destroy_plan(p);
+	#pragma omp critical
+	{
+		fftw_destroy_plan(p);
+	}
 	return coefficients;
 }
 
@@ -128,10 +157,6 @@ vector <double> calculateFilterBanks(vector <double> powerSpectrum, int sampleRa
 
 vector <double> calculateAutocorrelation(vector <double> signal)
 {
-	if (correlationCache.count(signal))
-		return correlationCache[signal];
-	if (correlationCache.size() > 100)
-		correlationCache.clear();
 	vector <double> paddedSignal = getZeroPaddedSeq(signal, signal.size());
 	int paddedSize = signal.size() * 2;
 	fftw_complex * forwardSignalFFT = calculateComplexFFT(paddedSignal);
@@ -148,8 +173,7 @@ vector <double> calculateAutocorrelation(vector <double> signal)
 	delete[] forwardSignalFFT;
 	delete[] backwardSignalFFT;
 	delete[] product;
-	correlationCache[signal] = autoCorrelation;
-
+	
 	return autoCorrelation;
 }
 
