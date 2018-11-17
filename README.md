@@ -22,3 +22,8 @@ $ ./PitchDetection example.wav 32 16 VOICED
 $ ./PitchDetection example.wav 32 16 VOICED NOTES
 (0.016, None ), (0.032, None ), (0.048, None ), (0.064, D3 ), (0.08, C3 ), (0.096, C#3 ), (0.112, C#3 ), (0.128, D3 ) ...
 ```
+
+### Generating Music Sheet
+```
+$ ./PitchDetection Resources/Audio-Samples/example.wav 32 16 VOICED NOTES SHEET
+```
