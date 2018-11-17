@@ -27,4 +27,5 @@ $ ./PitchDetection example.wav 32 16 VOICED NOTES
 ```
 $ ./PitchDetection Resources/Audio-Samples/example.wav 32 16 VOICED NOTES SHEET
 ```
+After the pitches have been recorded onto a CSV file, a Node.js server is started that reads the pitches from the CSV and creates a music transcription sheet is that is displayed at a local host (localhost:8080). 
 ![alt text](https://github.com/EdwardSeley/Music-Information-Retrieval/blob/master/Web/example_music_sheet.png)
