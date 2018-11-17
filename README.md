@@ -2,7 +2,7 @@
 A signal processing library that extracts musical information from audio files. The library processes an audio signal as a sequence of audio frames, with variable sample length and overlap. These frames are then used to predict the frame's pitch (using autocorrelation) or calculate the MFCC (Mel Frequency Cepstral Coefficients).
 
 ## Install
-This repository utilizes the FFTW (The Fastest Fourier Transform in the West) library for fourier calculations, the Eigen library for matrix calculations, and the 
+This repository utilizes the FFTW (The Fastest Fourier Transform in the West) library for fourier calculations, the Eigen library for matrix calculations, and Node.js for dynamically creating a music sheet that is displayed on a local host server (localhost:8080). 
 
 ## Command Line Interface
 usage: ./PitchDetection AUDIO FRAME_SIZE FRAME_JUMP VOICED/UNVOICED
