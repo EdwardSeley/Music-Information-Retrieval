@@ -27,3 +27,4 @@ $ ./PitchDetection example.wav 32 16 VOICED NOTES
 ```
 $ ./PitchDetection Resources/Audio-Samples/example.wav 32 16 VOICED NOTES SHEET
 ```
+![alt text](https://github.com/EdwardSeley/Music-Information-Retrieval/blob/master/Web/example_music_sheet.png)
