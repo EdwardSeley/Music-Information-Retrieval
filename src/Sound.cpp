@@ -5,8 +5,8 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "sndfile.h"
-#include "Sound.h"
-#include "Preprocessing.h"
+#include "Include/Sound.h"
+#include "Include/Preprocessing.h"
 
 #undef main
 using namespace std;

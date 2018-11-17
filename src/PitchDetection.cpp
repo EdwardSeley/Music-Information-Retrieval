@@ -1,20 +1,18 @@
 #include "stdafx.h"
 #include <iostream>
-#include "AudioFrame.h"
+#include "Include/AudioFrame.h"
 #include <vector>
-#include "AudioProcessing.h"
-#include "FeatureExtraction.h"
+#include "Include/AudioProcessing.h"
+#include "Include/FeatureExtraction.h"
 #include "map"
 #include <functional>
 #include <ctime>
-#include "stdafx.h"
-#include <iostream>
-#include "AudioFrame.h"
 #include <fstream>
 #include <vector>
-#include "AudioProcessing.h"
 #include "Eigen/Dense"
-#include <functional>
+#include <boost/filesystem.hpp>
+#include "windows.h"
+#include <thread>
 #undef main
 
 using namespace std;
@@ -46,15 +44,23 @@ string frequencyToNote(double frequency)
 	return NOTES[freqs[0]];
 }
 
+int startServer(string fileName) {
+	string command = "node Web/server.js " + fileName + ".csv";
+	system(command.c_str());
+	return 0;
+}
+
+namespace filesys = boost::filesystem;
 
 int main(int argc, const char * argv[])
 {
-
 	int FRAME_SIZE = 32;
 	int FRAME_SHIFT = (int)FRAME_SIZE / 2;
 	const char * FILE_PATH;
 	bool detectOnlyVoicedPitches = false;
 	bool convertToNotes = false;
+	bool createMusicSheet = false;
+
 	if (argc > 1)
 	{
 		FILE_PATH = argv[1];
@@ -82,13 +88,16 @@ int main(int argc, const char * argv[])
 		if (string(argv[5]) == "NOTES")
 			convertToNotes = true;
 	}
+	if (argc > 6)
+	{
+		if (string(argv[6]) == "SHEET")
+			createMusicSheet = true;
+	}
 
 	Sound sound = getSoundFromFile(FILE_PATH);
 	vector <AudioFrame> audioFrames = getAudioFrames(sound, FRAME_SIZE, FRAME_SHIFT);
 
 	vector <double> pitches(audioFrames.size());
-
-	cout << audioFrames.size() << endl;
 	
 	time_t startingTime;
 	time_t endingTime;
@@ -103,21 +112,35 @@ int main(int argc, const char * argv[])
 	
 	vector <double> filteredPitches = removeSpikesAndValleys(pitches);
 	
+
+	ofstream outputFile;
+	filesys::path pathObj(FILE_PATH);
+	string name = pathObj.stem().string();
+	string outputFilePath = "Output/" + name + ".csv";
+	outputFile.open(outputFilePath);
+
 	if (convertToNotes)
 	{
 		for (int i = 0; i < audioFrames.size(); i++)
 		{
-			cout << "(" << audioFrames[i].time << ", " << frequencyToNote(filteredPitches[i]) << " ), ";
+			outputFile << audioFrames[i].time << "," << frequencyToNote(filteredPitches[i]) << "," << endl;
 		}
-		cout << endl;
+		outputFile.close();
+		if (createMusicSheet) {
+			string command = "node Web//server.js " + name + ".csv";
+			thread serverThread(startServer, name);
+			ShellExecute(0, 0, L"http://localhost:8080", 0, 0, SW_SHOW);
+			system("pause");
+		}
 	}
 	else
 	{
 		for (int i = 0; i < audioFrames.size(); i++)
 		{
-			cout << "(" << audioFrames[i].time << ", " << filteredPitches[i] << " ), ";
+			outputFile << audioFrames[i].time << "," << filteredPitches[i] << "," << endl;
 		}
-		cout << endl;
+		outputFile.close();
 	}
+	
 	return 0;
 }

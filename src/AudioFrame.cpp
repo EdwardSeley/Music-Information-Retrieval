@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include <math.h>
 #include <vector>
-#include "Sound.h"
-#include "AudioFrame.h"
-#include "Preprocessing.h"
+#include "Include/Sound.h"
+#include "Include/AudioFrame.h"
+#include "Include/Preprocessing.h"
 
 #undef main
 using namespace std;

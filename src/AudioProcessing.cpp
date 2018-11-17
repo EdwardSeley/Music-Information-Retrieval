@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include <math.h>
-#include "Sound.h"
-#include "AudioFrame.h"
+#include "Include/Sound.h"
+#include "Include/AudioFrame.h"
 #include <complex>
 #include "fftw3.h"
-#include "AudioProcessing.h"
+#include "Include/AudioProcessing.h"
 #include <vector>
 #include <numeric> 
 #include <map>
